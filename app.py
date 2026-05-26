@@ -31,14 +31,14 @@ st.markdown("""
     background-color: white;
     padding: 15px;
     border-radius: 10px;
-    border: 1px solid #e6e6e6;
+    border: 1px solid #d9d9d9;
 }
 
 </style>
 """, unsafe_allow_html=True)
 
 # =========================================================
-# LOAD FILES
+# LOAD MODEL FILES
 # =========================================================
 
 model = joblib.load("efrms_xgboost_model.pkl")
@@ -53,12 +53,14 @@ threshold = joblib.load("threshold.pkl")
 
 st.title("🏦 Enterprise Fraud Risk Monitoring System (EFRMS)")
 
-st.markdown(
-    "### AI-Powered Real-Time Fraud Surveillance Dashboard"
-)
+st.markdown("""
+### AI-Powered Real-Time Fraud Surveillance Dashboard
+
+Real-Time Fraud Detection • RBI EWS Signals • Alert Monitoring • Fraud Analytics
+""")
 
 # =========================================================
-# SIDEBAR
+# SIDEBAR INPUTS
 # =========================================================
 
 st.sidebar.header("💳 Real-Time Transaction Input")
@@ -111,7 +113,7 @@ default_values = {
 }
 
 # =========================================================
-# INPUT DICTIONARY
+# INPUT COLLECTION
 # =========================================================
 
 input_dict = {}
@@ -183,7 +185,7 @@ for feature in network_features:
 input_data = pd.DataFrame([input_dict])
 
 # =========================================================
-# PREDICTION
+# PREDICTION ENGINE
 # =========================================================
 
 try:
@@ -199,7 +201,7 @@ except Exception as e:
     st.stop()
 
 # =========================================================
-# RISK CLASSIFICATION
+# RISK LEVELS
 # =========================================================
 
 if fraud_probability >= 0.80:
@@ -215,7 +217,7 @@ else:
     risk_level = "LOW RISK"
 
 # =========================================================
-# RBI EWS RULES
+# RBI EARLY WARNING SIGNALS
 # =========================================================
 
 ews_alerts = []
@@ -230,7 +232,7 @@ if input_dict.get("amount_deviation_ratio", 0) > 2:
 
 if input_dict.get("shared_device_count", 0) > 2:
 
-    ews_alerts.append("⚠️ Shared Device Fraud Risk")
+    ews_alerts.append("⚠️ Shared Device Risk")
 
 if input_dict.get("seconds_since_last_txn", 999999) < 60:
 
@@ -238,52 +240,54 @@ if input_dict.get("seconds_since_last_txn", 999999) < 60:
 
 if input_dict.get("is_night", 0) == 1:
 
-    ews_alerts.append("⚠️ Night-Time Suspicious Activity")
+    ews_alerts.append("⚠️ Suspicious Night Transaction")
 
 if input_dict.get("customer_merchant_txn_count", 0) > 10:
 
-    ews_alerts.append("⚠️ Repeated Merchant Transactions")
+    ews_alerts.append("⚠️ Repeated Merchant Activity")
 
 if input_dict.get("merchant_ring_id", 0) > 0:
 
-    ews_alerts.append("⚠️ Merchant Ring Risk Detected")
+    ews_alerts.append("⚠️ Suspicious Merchant Network")
 
 # =========================================================
-# KPI SECTION
+# EXECUTIVE KPI DASHBOARD
 # =========================================================
 
-col1, col2, col3, col4 = st.columns(4)
+st.subheader("📊 Executive Fraud Dashboard")
 
-with col1:
+kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+
+with kpi1:
 
     st.metric(
         "Fraud Probability",
         f"{fraud_probability:.2%}"
     )
 
-with col2:
+with kpi2:
 
     st.metric(
         "Risk Level",
         risk_level
     )
 
-with col3:
+with kpi3:
 
     st.metric(
         "EWS Alerts",
         len(ews_alerts)
     )
 
-with col4:
+with kpi4:
 
     st.metric(
-        "Model Threshold",
+        "Threshold",
         f"{threshold:.2f}"
     )
 
 # =========================================================
-# FRAUD ALERT ENGINE
+# ALERT ENGINE
 # =========================================================
 
 st.subheader("🚨 Real-Time Fraud Alert Engine")
@@ -291,7 +295,7 @@ st.subheader("🚨 Real-Time Fraud Alert Engine")
 if prediction == 1:
 
     st.error(
-        f"⚠️ FRAUD ALERT GENERATED | Risk Level: {risk_level}"
+        f"⚠️ FRAUD ALERT GENERATED | {risk_level}"
     )
 
 else:
@@ -304,7 +308,7 @@ else:
 # RBI EWS ALERTS
 # =========================================================
 
-st.subheader("🏦 RBI Early Warning Signals (EWS)")
+st.subheader("🏦 RBI Early Warning Signals")
 
 if len(ews_alerts) > 0:
 
@@ -375,7 +379,7 @@ fig_pie = px.pie(
 st.plotly_chart(fig_pie, width='stretch')
 
 # =========================================================
-# FRAUD ACTIVITY BY HOUR
+# FRAUD TREND
 # =========================================================
 
 st.subheader("⏰ Fraud Activity by Hour")
@@ -396,7 +400,7 @@ fig_hour = px.line(
 st.plotly_chart(fig_hour, width='stretch')
 
 # =========================================================
-# RBI EWS DISTRIBUTION
+# EWS DISTRIBUTION
 # =========================================================
 
 st.subheader("🏦 RBI EWS Trigger Distribution")
@@ -407,7 +411,7 @@ ews_df = pd.DataFrame({
         "Shared Device",
         "Night Transaction",
         "Rapid Transactions",
-        "Merchant Ring"
+        "Merchant Network"
     ],
     "Count": [12, 5, 8, 6, 4]
 })
@@ -422,7 +426,27 @@ fig_ews = px.bar(
 st.plotly_chart(fig_ews, width='stretch')
 
 # =========================================================
-# LIVE ALERT TABLE
+# CASE MANAGEMENT DASHBOARD
+# =========================================================
+
+st.subheader("🗂️ Fraud Case Management")
+
+case_df = pd.DataFrame({
+    "Case_ID": ["CASE1001", "CASE1002", "CASE1003"],
+    "Risk_Level": ["HIGH", "MEDIUM", "HIGH"],
+    "Status": ["OPEN", "UNDER REVIEW", "ESCALATED"],
+    "Priority": ["CRITICAL", "MEDIUM", "HIGH"],
+    "Assigned_To": [
+        "Fraud Analyst",
+        "Risk Team",
+        "Investigation Unit"
+    ]
+})
+
+st.dataframe(case_df, width='stretch')
+
+# =========================================================
+# LIVE FRAUD ALERTS
 # =========================================================
 
 st.subheader("🚨 Live Fraud Alerts")
@@ -444,9 +468,9 @@ st.subheader("🛰️ Live Alert Monitor")
 
 monitor_df = pd.DataFrame({
     "Timestamp": [datetime.now()],
-    "Fraud Probability": [round(fraud_probability, 4)],
-    "Risk Level": [risk_level],
-    "Alert Status": [
+    "Fraud_Probability": [round(fraud_probability, 4)],
+    "Risk_Level": [risk_level],
+    "Alert_Status": [
         "ALERT GENERATED" if prediction == 1 else "NORMAL"
     ]
 })
@@ -454,12 +478,33 @@ monitor_df = pd.DataFrame({
 st.dataframe(monitor_df, width='stretch')
 
 # =========================================================
+# FILE UPLOAD SECTION
+# =========================================================
+
+st.subheader("📂 Batch Transaction Fraud Monitoring")
+
+uploaded_file = st.file_uploader(
+    "Upload Transaction CSV",
+    type=["csv"]
+)
+
+if uploaded_file is not None:
+
+    batch_df = pd.read_csv(uploaded_file)
+
+    st.write("Uploaded Transactions")
+
+    st.dataframe(batch_df.head(), width='stretch')
+
+# =========================================================
 # FOOTER
 # =========================================================
 
 st.markdown("---")
 
-st.markdown(
-    "🏦 Enterprise Fraud Risk Monitoring System | "
-    "AI + RBI EWS + Real-Time Fraud Analytics"
-)
+st.markdown("""
+🏦 Enterprise Fraud Risk Monitoring System (EFRMS)
+
+AI-Powered Fraud Detection • RBI Early Warning Signals •
+Real-Time Alert Surveillance • Enterprise Fraud Analytics
+""")
