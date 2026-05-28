@@ -51,6 +51,50 @@ st.markdown("""
 """)
 
 # =========================================================
+# KPI HEADER
+# =========================================================
+
+k1,k2,k3,k4 = st.columns(4)
+
+k1.metric(
+    "Total Alerts Today",
+    random.randint(120,250)
+)
+
+k2.metric(
+    "Open Cases",
+    random.randint(20,80)
+)
+
+k3.metric(
+    "Critical Cases",
+    random.randint(5,20)
+)
+
+k4.metric(
+    "Blocked Accounts",
+    random.randint(2,15)
+)
+
+st.markdown("---")
+
+# =========================================================
+# TABS
+# =========================================================
+
+tab1,tab2,tab3,tab4 = st.tabs([
+
+    "📊 Dashboard",
+
+    "🚨 Alerts",
+
+    "🗂️ Cases",
+
+    "📈 Analytics"
+
+])
+
+# =========================================================
 # SIDEBAR
 # =========================================================
 
@@ -189,7 +233,7 @@ analyse = st.sidebar.button(
 )
 
 # =========================================================
-# MAIN ANALYSIS
+# ANALYSIS ENGINE
 # =========================================================
 
 if analyse:
@@ -205,7 +249,7 @@ if analyse:
     customer_id = f"CUST-{random.randint(1000,9999)}"
 
     # =====================================================
-    # RBI EWS ENGINE
+    # RBI EWS RULES
     # =====================================================
 
     rapid_funds_flag = int(
@@ -290,6 +334,20 @@ if analyse:
         )
     )
 
+    impossible_travel_risk = int(
+        (
+            is_night == 1
+        )
+        and
+        (
+            transaction_velocity_7d > 25
+        )
+    )
+
+    beneficiary_risk = int(
+        customer_merchant_txn_count > 15
+    )
+
     transaction_zscore = (
         avg_amount_30d - 500
     ) / 200
@@ -326,11 +384,15 @@ if analyse:
         +
         abnormal_behavior_risk
         +
+        impossible_travel_risk
+        +
+        beneficiary_risk
+        +
         extreme_spike_flag
     )
 
     # =====================================================
-    # INPUT DATAFRAME
+    # INPUT DATA
     # =====================================================
 
     input_data = pd.DataFrame([{
@@ -406,6 +468,12 @@ if analyse:
         "abnormal_behavior_risk":
         abnormal_behavior_risk,
 
+        "impossible_travel_risk":
+        impossible_travel_risk,
+
+        "beneficiary_risk":
+        beneficiary_risk,
+
         "extreme_spike_flag":
         extreme_spike_flag,
 
@@ -436,7 +504,7 @@ if analyse:
     )[0]
 
     # =====================================================
-    # PRIORITY ENGINE
+    # RISK ENGINE
     # =====================================================
 
     if fraud_probability > 0.95:
@@ -460,624 +528,636 @@ if analyse:
         risk_level = "LOW"
 
     # =====================================================
-    # EXECUTIVE DASHBOARD
+    # DASHBOARD TAB
     # =====================================================
 
-    st.subheader(
-        "📊 Executive Dashboard"
-    )
+    with tab1:
 
-    c1,c2,c3,c4,c5 = st.columns(5)
+        st.subheader(
+            "📊 Executive Dashboard"
+        )
 
-    c1.metric(
-        "Fraud Probability",
-        f"{fraud_probability:.2%}"
-    )
+        c1,c2,c3,c4,c5 = st.columns(5)
 
-    c2.metric(
-        "Risk Level",
-        risk_level
-    )
+        c1.metric(
+            "Fraud Probability",
+            f"{fraud_probability:.2%}"
+        )
 
-    c3.metric(
-        "EWS Score",
-        ews_score
-    )
+        c2.metric(
+            "Risk Level",
+            risk_level
+        )
 
-    c4.metric(
-        "Case ID",
-        case_id
-    )
+        c3.metric(
+            "EWS Score",
+            ews_score
+        )
 
-    c5.metric(
-        "Anomaly Score",
-        round(anomaly_score,4)
-    )
+        c4.metric(
+            "Case ID",
+            case_id
+        )
 
-    # =====================================================
-    # ALERT ENGINE
-    # =====================================================
+        c5.metric(
+            "Anomaly Score",
+            round(anomaly_score,4)
+        )
 
-    st.subheader(
-        "🚨 Enterprise Fraud Alert Engine"
-    )
+        # =================================================
+        # ALERT ENGINE
+        # =================================================
 
-    if (
-        fraud_probability > threshold
-        or
-        ews_score >= 3
-        or
-        anomaly_score < -0.1
-    ):
+        st.subheader(
+            "🚨 Enterprise Fraud Alert Engine"
+        )
 
-        st.error(
-            f"""
+        if (
+            fraud_probability > threshold
+            or
+            ews_score >= 3
+            or
+            anomaly_score < -0.1
+        ):
+
+            st.error(
+                f"""
 🚨 HIGH RISK FRAUD ALERT GENERATED
 
 CASE ID: {case_id}
 """
+            )
+
+        else:
+
+            st.success(
+                "✅ Transaction appears legitimate"
+            )
+
+        # =================================================
+        # CUSTOMER PROFILE
+        # =================================================
+
+        st.subheader(
+            "👤 Customer 360 Profile"
         )
 
-    else:
+        customer_df = pd.DataFrame({
 
-        st.success(
-            "✅ Transaction appears legitimate"
+            "Attribute":[
+
+                "Customer ID",
+                "KYC Risk",
+                "Country",
+                "Previous Alerts",
+                "Shared Devices"
+            ],
+
+            "Value":[
+
+                customer_id,
+                "HIGH",
+                "India",
+                random.randint(0,5),
+                shared_device_count
+            ]
+        })
+
+        st.dataframe(
+            customer_df,
+            use_container_width=True
         )
 
-    # =====================================================
-    # CUSTOMER 360
-    # =====================================================
+        # =================================================
+        # EWS ALERTS
+        # =================================================
 
-    st.subheader(
-        "👤 Customer 360 Profile"
-    )
-
-    customer_df = pd.DataFrame({
-
-        "Attribute":[
-
-            "Customer ID",
-            "Account Age",
-            "KYC Risk",
-            "Country",
-            "Previous Alerts",
-            "Shared Device Count"
-        ],
-
-        "Value":[
-
-            customer_id,
-            "5 Years",
-            "HIGH",
-            "India",
-            random.randint(0,5),
-            shared_device_count
-        ]
-    })
-
-    st.dataframe(
-        customer_df,
-        use_container_width=True
-    )
-
-    # =====================================================
-    # RBI EWS ALERTS
-    # =====================================================
-
-    st.subheader(
-        "🏦 RBI Early Warning Signals"
-    )
-
-    ews_alerts = []
-
-    if rapid_funds_flag:
-        ews_alerts.append(
-            "Rapid movement of funds"
+        st.subheader(
+            "🏦 RBI Early Warning Signals"
         )
 
-    if high_velocity_risk:
-        ews_alerts.append(
-            "High transaction velocity"
+        ews_alerts = []
+
+        if rapid_funds_flag:
+            ews_alerts.append(
+                "Rapid movement of funds"
+            )
+
+        if high_velocity_risk:
+            ews_alerts.append(
+                "High transaction velocity"
+            )
+
+        if night_transaction_risk:
+            ews_alerts.append(
+                "Late-night suspicious activity"
+            )
+
+        if shared_device_risk:
+            ews_alerts.append(
+                "Shared device anomaly"
+            )
+
+        if merchant_network_risk:
+            ews_alerts.append(
+                "Merchant network linkage"
+            )
+
+        if mule_account_risk:
+            ews_alerts.append(
+                "Potential mule activity"
+            )
+
+        if account_takeover_risk:
+            ews_alerts.append(
+                "Potential account takeover"
+            )
+
+        if structuring_risk:
+            ews_alerts.append(
+                "Structuring / smurfing pattern"
+            )
+
+        if impossible_travel_risk:
+            ews_alerts.append(
+                "Impossible travel risk"
+            )
+
+        if beneficiary_risk:
+            ews_alerts.append(
+                "Beneficiary manipulation risk"
+            )
+
+        if len(ews_alerts) > 0:
+
+            for alert in ews_alerts:
+
+                st.warning(alert)
+
+        else:
+
+            st.success(
+                "No RBI EWS alerts triggered"
+            )
+
+        # =================================================
+        # SHAP
+        # =================================================
+
+        st.subheader(
+            "🧠 SHAP Explainability"
         )
 
-    if night_transaction_risk:
-        ews_alerts.append(
-            "Late-night suspicious activity"
+        explainer = shap.TreeExplainer(
+            model
         )
 
-    if shared_device_risk:
-        ews_alerts.append(
-            "Shared device anomaly"
+        shap_values = explainer.shap_values(
+            input_data
         )
 
-    if merchant_network_risk:
-        ews_alerts.append(
-            "Merchant network linkage"
+        shap_df = pd.DataFrame({
+
+            "Feature":
+            input_data.columns,
+
+            "Impact":
+            shap_values[0]
+
+        })
+
+        shap_df = shap_df.sort_values(
+            by="Impact",
+            ascending=False
         )
 
-    if amount_spike_risk:
-        ews_alerts.append(
-            "Sudden amount spike"
+        shap_chart = px.bar(
+
+            shap_df.head(10),
+
+            x="Impact",
+
+            y="Feature",
+
+            orientation="h"
         )
 
-    if mule_account_risk:
-        ews_alerts.append(
-            "Potential mule activity"
+        st.plotly_chart(
+            shap_chart,
+            use_container_width=True
         )
 
-    if account_takeover_risk:
-        ews_alerts.append(
-            "Potential account takeover"
+        # =================================================
+        # GAUGE
+        # =================================================
+
+        st.subheader(
+            "🎯 Fraud Risk Gauge"
         )
 
-    if structuring_risk:
-        ews_alerts.append(
-            "Structuring / smurfing risk"
-        )
+        gauge = go.Figure(go.Indicator(
 
-    if abnormal_behavior_risk:
-        ews_alerts.append(
-            "Abnormal customer behavior"
-        )
+            mode="gauge+number",
 
-    if len(ews_alerts) > 0:
+            value=fraud_probability*100,
 
-        for alert in ews_alerts:
+            title={
+                'text':"Fraud Risk %"
+            },
 
-            st.warning(alert)
+            gauge={
 
-    else:
-
-        st.success(
-            "No RBI EWS alerts triggered"
-        )
-
-    # =====================================================
-    # SHAP EXPLAINABILITY
-    # =====================================================
-
-    st.subheader(
-        "🧠 SHAP Explainability"
-    )
-
-    explainer = shap.TreeExplainer(model)
-
-    shap_values = explainer.shap_values(
-        input_data
-    )
-
-    shap_df = pd.DataFrame({
-
-        "Feature":
-        input_data.columns,
-
-        "Impact":
-        shap_values[0]
-
-    })
-
-    shap_df = shap_df.sort_values(
-        by="Impact",
-        ascending=False
-    )
-
-    st.dataframe(
-        shap_df.head(10),
-        use_container_width=True
-    )
-
-    # =====================================================
-    # FRAUD RISK GAUGE
-    # =====================================================
-
-    st.subheader(
-        "🎯 Fraud Risk Gauge"
-    )
-
-    gauge = go.Figure(go.Indicator(
-
-        mode="gauge+number",
-
-        value=fraud_probability*100,
-
-        title={
-            'text':"Fraud Risk %"
-        },
-
-        gauge={
-
-            'axis':{
-                'range':[0,100]
+                'axis':{
+                    'range':[0,100]
+                }
             }
-        }
-    ))
+        ))
 
-    st.plotly_chart(
-        gauge,
-        use_container_width=True
-    )
-
-    # =====================================================
-    # FRAUD DISTRIBUTION
-    # =====================================================
-
-    st.subheader(
-        "📊 Fraud Distribution"
-    )
-
-    fraud_dist = pd.DataFrame({
-
-        "Category":[
-            "Fraud",
-            "Legitimate"
-        ],
-
-        "Value":[
-            fraud_probability,
-            1-fraud_probability
-        ]
-    })
-
-    pie_fig = px.pie(
-
-        fraud_dist,
-
-        names="Category",
-
-        values="Value",
-
-        hole=0.4
-    )
-
-    st.plotly_chart(
-        pie_fig,
-        use_container_width=True
-    )
+        st.plotly_chart(
+            gauge,
+            use_container_width=True
+        )
 
     # =====================================================
-    # FRAUD TREND
+    # ALERTS TAB
     # =====================================================
 
-    st.subheader(
-        "📈 Hourly Fraud Trend"
-    )
+    with tab2:
 
-    trend_df = pd.DataFrame({
+        st.subheader(
+            "🛰️ Live Fraud Alert Monitor"
+        )
 
-        "Hour":list(range(24)),
+        placeholder = st.empty()
 
-        "Fraud_Risk":
-        np.abs(
-            np.sin(
-                np.linspace(
-                    0,
-                    3*np.pi,
-                    24
+        for i in range(3):
+
+            live_df = pd.DataFrame({
+
+                "Time":[
+
+                    datetime.now().strftime(
+                        "%H:%M:%S"
+                    )
+                ],
+
+                "Transaction":[
+
+                    f"TXN-{random.randint(1000,9999)}"
+                ],
+
+                "Risk":[
+
+                    random.choice([
+                        "LOW",
+                        "MEDIUM",
+                        "HIGH",
+                        "CRITICAL"
+                    ])
+                ],
+
+                "Alert":[
+
+                    random.choice([
+                        "Velocity Spike",
+                        "Shared Device",
+                        "Account Takeover",
+                        "Structuring",
+                        "Mule Pattern"
+                    ])
+                ]
+            })
+
+            placeholder.dataframe(
+                live_df,
+                use_container_width=True
+            )
+
+            time.sleep(1)
+
+    # =====================================================
+    # CASE MANAGEMENT TAB
+    # =====================================================
+
+    with tab3:
+
+        st.subheader(
+            "🗂️ Enterprise Case Management"
+        )
+
+        case_queue = pd.DataFrame({
+
+            "Case_ID":[
+
+                case_id,
+
+                f"CASE-{random.randint(1000,9999)}",
+
+                f"CASE-{random.randint(1000,9999)}"
+            ],
+
+            "Risk_Level":[
+
+                risk_level,
+
+                "MEDIUM",
+
+                "LOW"
+            ],
+
+            "Status":[
+
+                "OPEN",
+
+                "UNDER REVIEW",
+
+                "ESCALATED"
+            ]
+        })
+
+        st.data_editor(
+            case_queue,
+            use_container_width=True
+        )
+
+        selected_case = st.selectbox(
+
+            "Open Investigation Case",
+
+            case_queue["Case_ID"]
+        )
+
+        investigator = st.selectbox(
+
+            "Assign Investigator",
+
+            [
+
+                "Fraud Analyst 1",
+
+                "Fraud Analyst 2",
+
+                "AML Team",
+
+                "Risk Team"
+            ]
+        )
+
+        st.subheader(
+            "🔍 Investigation Panel"
+        )
+
+        st.write(
+            f"Currently Investigating: {selected_case}"
+        )
+
+        st.write(
+            f"Assigned To: {investigator}"
+        )
+
+        # =================================================
+        # COMMENTS
+        # =================================================
+
+        comments_df = pd.DataFrame({
+
+            "Timestamp":[
+
+                "10:01",
+
+                "10:05",
+
+                "10:12"
+            ],
+
+            "Analyst":[
+
+                "Fraud Team",
+
+                "Manager",
+
+                "Investigator"
+            ],
+
+            "Comment":[
+
+                "Velocity anomaly detected",
+
+                "Escalated for review",
+
+                "Customer unreachable"
+            ]
+        })
+
+        st.subheader(
+            "📝 Investigation Comments"
+        )
+
+        st.dataframe(
+            comments_df,
+            use_container_width=True
+        )
+
+        analyst_comment = st.text_area(
+            "Add Investigation Comment"
+        )
+
+        if st.button(
+            "💾 Save Comment"
+        ):
+
+            st.success(
+                "Comment saved successfully"
+            )
+
+        # =================================================
+        # ACTIONS
+        # =================================================
+
+        st.subheader(
+            "⚙️ Analyst Actions"
+        )
+
+        a1,a2,a3,a4 = st.columns(4)
+
+        if a1.button(
+            "🚨 Escalate"
+        ):
+
+            st.warning(
+                f"{selected_case} escalated"
+            )
+
+        if a2.button(
+            "🔒 Freeze Account"
+        ):
+
+            st.error(
+                "Account freeze initiated"
+            )
+
+        if a3.button(
+            "📤 Generate STR"
+        ):
+
+            st.info(
+                "STR generation initiated"
+            )
+
+        if a4.button(
+            "✅ Close Case"
+        ):
+
+            st.success(
+                f"{selected_case} closed"
+            )
+
+        # =================================================
+        # TIMELINE
+        # =================================================
+
+        st.subheader(
+            "⏳ Case Timeline"
+        )
+
+        timeline_df = pd.DataFrame({
+
+            "Time":[
+
+                "10:01",
+
+                "10:05",
+
+                "10:12",
+
+                "10:20"
+            ],
+
+            "Event":[
+
+                "Transaction Triggered",
+
+                "RBI EWS Triggered",
+
+                "Analyst Assigned",
+
+                "Escalated"
+            ]
+        })
+
+        st.dataframe(
+            timeline_df,
+            use_container_width=True
+        )
+
+    # =====================================================
+    # ANALYTICS TAB
+    # =====================================================
+
+    with tab4:
+
+        st.subheader(
+            "📊 Fraud Distribution"
+        )
+
+        fraud_dist = pd.DataFrame({
+
+            "Category":[
+                "Fraud",
+                "Legitimate"
+            ],
+
+            "Value":[
+                fraud_probability,
+                1-fraud_probability
+            ]
+        })
+
+        pie_fig = px.pie(
+
+            fraud_dist,
+
+            names="Category",
+
+            values="Value",
+
+            hole=0.4
+        )
+
+        st.plotly_chart(
+            pie_fig,
+            use_container_width=True
+        )
+
+        # =================================================
+        # FRAUD TREND
+        # =================================================
+
+        st.subheader(
+            "📈 Hourly Fraud Trend"
+        )
+
+        trend_df = pd.DataFrame({
+
+            "Hour":list(range(24)),
+
+            "Fraud_Risk":
+            np.abs(
+                np.sin(
+                    np.linspace(
+                        0,
+                        3*np.pi,
+                        24
+                    )
                 )
             )
+        })
+
+        trend_fig = px.line(
+
+            trend_df,
+
+            x="Hour",
+
+            y="Fraud_Risk",
+
+            markers=True
         )
-    })
 
-    trend_fig = px.line(
+        st.plotly_chart(
+            trend_fig,
+            use_container_width=True
+        )
 
-        trend_df,
+        # =================================================
+        # MODEL MONITORING
+        # =================================================
 
-        x="Hour",
+        st.subheader(
+            "🧠 Model Monitoring"
+        )
 
-        y="Fraud_Risk",
+        m1,m2,m3,m4 = st.columns(4)
 
-        markers=True
-    )
+        m1.metric(
+            "Precision",
+            "0.99"
+        )
 
-    st.plotly_chart(
-        trend_fig,
-        use_container_width=True
-    )
+        m2.metric(
+            "Recall",
+            "0.82"
+        )
 
-    # =====================================================
-    # LIVE MONITOR
-    # =====================================================
+        m3.metric(
+            "Threshold",
+            "0.40"
+        )
 
-    st.subheader(
-        "🛰️ Live Fraud Alert Monitor"
-    )
-
-    live_alerts = pd.DataFrame({
-
-        "Time":[
-
-            datetime.now().strftime("%H:%M:%S"),
-
-            datetime.now().strftime("%H:%M:%S"),
-
-            datetime.now().strftime("%H:%M:%S")
-        ],
-
-        "Transaction_ID":[
-
-            transaction_id,
-
-            f"TXN-{random.randint(1000,9999)}",
-
-            f"TXN-{random.randint(1000,9999)}"
-        ],
-
-        "Risk":[
-
-            risk_level,
-
-            "MEDIUM",
-
+        m4.metric(
+            "Model Drift",
             "LOW"
-        ],
-
-        "Alert":[
-
-            "Velocity Spike",
-
-            "Shared Device",
-
-            "Legitimate"
-        ]
-    })
-
-    st.dataframe(
-        live_alerts,
-        use_container_width=True
-    )
-
-    # =====================================================
-    # ENTERPRISE CASE MANAGEMENT
-    # =====================================================
-
-    st.subheader(
-        "🗂️ Enterprise Case Management"
-    )
-
-    case_queue = pd.DataFrame({
-
-        "Case_ID":[
-
-            case_id,
-
-            f"CASE-{random.randint(1000,9999)}",
-
-            f"CASE-{random.randint(1000,9999)}"
-        ],
-
-        "Risk_Level":[
-
-            risk_level,
-
-            "MEDIUM",
-
-            "LOW"
-        ],
-
-        "Status":[
-
-            "OPEN",
-
-            "UNDER REVIEW",
-
-            "ESCALATED"
-        ]
-    })
-
-    edited_df = st.data_editor(
-
-        case_queue,
-
-        use_container_width=True,
-
-        hide_index=True
-    )
-
-    selected_case = st.selectbox(
-
-        "Open Investigation Case",
-
-        edited_df["Case_ID"]
-    )
-
-    # =====================================================
-    # ANALYST ASSIGNMENT
-    # =====================================================
-
-    investigator = st.selectbox(
-
-        "Assign Investigator",
-
-        [
-
-            "Fraud Analyst 1",
-
-            "Fraud Analyst 2",
-
-            "AML Team",
-
-            "Risk Team"
-        ]
-    )
-
-    # =====================================================
-    # INVESTIGATION PANEL
-    # =====================================================
-
-    st.subheader(
-        "🔍 Investigation Panel"
-    )
-
-    st.write(
-        f"Currently Investigating: {selected_case}"
-    )
-
-    st.write(
-        f"Assigned To: {investigator}"
-    )
-
-    # =====================================================
-    # COMMENT HISTORY
-    # =====================================================
-
-    comments_df = pd.DataFrame({
-
-        "Timestamp":[
-
-            "10:01",
-
-            "10:05",
-
-            "10:12",
-
-            "10:20"
-        ],
-
-        "Analyst":[
-
-            "Analyst1",
-
-            "Fraud Team",
-
-            "Manager",
-
-            "Investigator"
-        ],
-
-        "Comment":[
-
-            "Velocity anomaly detected",
-
-            "Shared device identified",
-
-            "Escalated for review",
-
-            "Customer unreachable"
-        ]
-    })
-
-    st.subheader(
-        "📝 Investigation Comments"
-    )
-
-    st.dataframe(
-        comments_df,
-        use_container_width=True
-    )
-
-    analyst_comment = st.text_area(
-        "Add Investigation Comment"
-    )
-
-    if st.button(
-        "💾 Save Comment"
-    ):
-
-        st.success(
-            "Comment saved successfully"
         )
-
-    # =====================================================
-    # ANALYST ACTIONS
-    # =====================================================
-
-    st.subheader(
-        "⚙️ Analyst Actions"
-    )
-
-    a1,a2,a3,a4 = st.columns(4)
-
-    if a1.button(
-        "🚨 Escalate"
-    ):
-
-        st.warning(
-            f"{selected_case} escalated"
-        )
-
-    if a2.button(
-        "🔒 Freeze Account"
-    ):
-
-        st.error(
-            "Account freeze initiated"
-        )
-
-    if a3.button(
-        "📤 Generate STR"
-    ):
-
-        st.info(
-            "STR generation initiated"
-        )
-
-    if a4.button(
-        "✅ Close Case"
-    ):
-
-        st.success(
-            f"{selected_case} closed"
-        )
-
-    # =====================================================
-    # ADDITIONAL ACTIONS
-    # =====================================================
-
-    b1,b2 = st.columns(2)
-
-    if b1.button(
-        "📵 Block Channel"
-    ):
-
-        st.warning(
-            "Net banking channel blocked"
-        )
-
-    if b2.button(
-        "📞 Contact Customer"
-    ):
-
-        st.info(
-            "Customer notification initiated"
-        )
-
-    # =====================================================
-    # CASE TIMELINE
-    # =====================================================
-
-    st.subheader(
-        "⏳ Case Timeline"
-    )
-
-    timeline_df = pd.DataFrame({
-
-        "Time":[
-
-            "10:01",
-
-            "10:05",
-
-            "10:12",
-
-            "10:20"
-        ],
-
-        "Event":[
-
-            "Transaction Triggered",
-
-            "RBI EWS Triggered",
-
-            "Analyst Assigned",
-
-            "Escalated"
-        ]
-    })
-
-    st.dataframe(
-        timeline_df,
-        use_container_width=True
-    )
 
 # =========================================================
 # FOOTER
