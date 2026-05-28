@@ -6,7 +6,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 import shap
 import random
-
 from datetime import datetime
 
 # =========================================================
@@ -19,44 +18,32 @@ st.set_page_config(
 )
 
 # =========================================================
-# LOAD MODELS
+# LOAD MODEL FILES
 # =========================================================
 
-model = joblib.load(
-    "efrms_xgboost_model.pkl"
-)
+model = joblib.load("efrms_xgboost_model.pkl")
 
-iso_model = joblib.load(
-    "isolation_forest_model.pkl"
-)
+iso_model = joblib.load("isolation_forest_model.pkl")
 
-threshold = joblib.load(
-    "threshold.pkl"
-)
+threshold = joblib.load("threshold.pkl")
 
-features = joblib.load(
-    "features.pkl"
-)
+features = joblib.load("features.pkl")
 
 # =========================================================
 # TITLE
 # =========================================================
 
-st.title(
-    "🏦 Enterprise Fraud Risk Monitoring System"
-)
+st.title("🏦 Enterprise Fraud Risk Monitoring System (EFRMS)")
 
 st.markdown("""
-### AI-Powered Fraud Surveillance • RBI EWS • Real-Time Alert Monitoring
+### AI-Powered Fraud Detection • RBI EWS • Real-Time Fraud Surveillance
 """)
 
 # =========================================================
 # SIDEBAR
 # =========================================================
 
-st.sidebar.header(
-    "💳 Real-Time Transaction Input"
-)
+st.sidebar.header("💳 Real-Time Transaction Input")
 
 # =========================================================
 # TIME FEATURES
@@ -187,6 +174,14 @@ analyse = st.sidebar.button(
 if analyse:
 
     # =====================================================
+    # CASE ID
+    # =====================================================
+
+    case_id = f"CASE-{random.randint(100000,999999)}"
+
+    transaction_id = f"TXN-{random.randint(100000,999999)}"
+
+    # =====================================================
     # RBI EWS ENGINE
     # =====================================================
 
@@ -212,6 +207,24 @@ if analyse:
 
     amount_spike_risk = int(
         amount_deviation_ratio > 2
+    )
+
+    dormant_account_risk = int(
+        seconds_since_last_txn > 2592000
+    )
+
+    repeated_merchant_risk = int(
+        customer_merchant_txn_count > 10
+    )
+
+    rapid_night_risk = int(
+        (
+            seconds_since_last_txn < 60
+        )
+        and
+        (
+            is_night == 1
+        )
     )
 
     mule_account_risk = int(
@@ -258,6 +271,10 @@ if analyse:
         avg_amount_30d - 500
     ) / 200
 
+    extreme_spike_flag = int(
+        transaction_zscore > 3
+    )
+
     ews_score = (
 
         rapid_funds_flag
@@ -272,6 +289,12 @@ if analyse:
         +
         amount_spike_risk
         +
+        dormant_account_risk
+        +
+        repeated_merchant_risk
+        +
+        rapid_night_risk
+        +
         mule_account_risk
         +
         account_takeover_risk
@@ -279,6 +302,8 @@ if analyse:
         structuring_risk
         +
         abnormal_behavior_risk
+        +
+        extreme_spike_flag
     )
 
     # =====================================================
@@ -337,6 +362,15 @@ if analyse:
         "amount_spike_risk":
         amount_spike_risk,
 
+        "dormant_account_risk":
+        dormant_account_risk,
+
+        "repeated_merchant_risk":
+        repeated_merchant_risk,
+
+        "rapid_night_risk":
+        rapid_night_risk,
+
         "mule_account_risk":
         mule_account_risk,
 
@@ -349,18 +383,34 @@ if analyse:
         "abnormal_behavior_risk":
         abnormal_behavior_risk,
 
+        "extreme_spike_flag":
+        extreme_spike_flag,
+
         "ews_score":
         ews_score
 
     }])
 
     # =====================================================
-    # MODEL PREDICTIONS
+    # MATCH TRAINING FEATURES
+    # =====================================================
+
+    input_data = input_data.reindex(
+        columns=features,
+        fill_value=0
+    )
+
+    # =====================================================
+    # MODEL PREDICTION
     # =====================================================
 
     fraud_probability = model.predict_proba(
         input_data
     )[:,1][0]
+
+    prediction = int(
+        fraud_probability > threshold
+    )
 
     anomaly_score = iso_model.decision_function(
         input_data
@@ -387,46 +437,58 @@ if analyse:
         risk_level = "LOW"
 
     # =====================================================
-    # CASE ID
-    # =====================================================
-
-    case_id = f"CASE-{random.randint(100000,999999)}"
-
-    # =====================================================
     # EXECUTIVE DASHBOARD
     # =====================================================
 
     st.subheader("📊 Executive Dashboard")
 
-    c1,c2,c3,c4 = st.columns(4)
+    col1,col2,col3,col4 = st.columns(4)
 
-    c1.metric(
+    col1.metric(
         "Fraud Probability",
         f"{fraud_probability:.2%}"
     )
 
-    c2.metric(
+    col2.metric(
         "Risk Level",
         risk_level
     )
 
-    c3.metric(
+    col3.metric(
         "EWS Score",
         ews_score
     )
 
-    c4.metric(
-        "Case ID",
-        case_id
+    col4.metric(
+        "Anomaly Score",
+        round(anomaly_score,4)
+    )
+
+    # =====================================================
+    # CASE DETAILS
+    # =====================================================
+
+    st.subheader("🗂️ Fraud Case Information")
+
+    case_df = pd.DataFrame({
+
+        "Case_ID":[case_id],
+        "Transaction_ID":[transaction_id],
+        "Timestamp":[datetime.now()],
+        "Risk_Level":[risk_level]
+
+    })
+
+    st.dataframe(
+        case_df,
+        width='stretch'
     )
 
     # =====================================================
     # ALERT ENGINE
     # =====================================================
 
-    st.subheader(
-        "🚨 Enterprise Fraud Alert Engine"
-    )
+    st.subheader("🚨 Real-Time Fraud Alert Engine")
 
     if (
         fraud_probability > threshold
@@ -437,11 +499,7 @@ if analyse:
     ):
 
         st.error(
-            f"""
-🚨 HIGH RISK ALERT GENERATED
-
-CASE ID: {case_id}
-"""
+            f"🚨 FRAUD ALERT GENERATED | CASE ID: {case_id}"
         )
 
     else:
@@ -451,55 +509,68 @@ CASE ID: {case_id}
         )
 
     # =====================================================
-    # RBI EWS SIGNALS
+    # RBI EWS ALERTS
     # =====================================================
 
-    st.subheader(
-        "🏦 RBI Early Warning Signals"
-    )
+    st.subheader("🏦 RBI Early Warning Signals")
 
-    alerts = []
+    ews_alerts = []
 
     if rapid_funds_flag:
-        alerts.append(
+        ews_alerts.append(
             "Rapid movement of funds"
         )
 
     if high_velocity_risk:
-        alerts.append(
+        ews_alerts.append(
             "High transaction velocity"
         )
 
     if night_transaction_risk:
-        alerts.append(
-            "Suspicious late-night activity"
+        ews_alerts.append(
+            "Late-night suspicious activity"
         )
 
     if shared_device_risk:
-        alerts.append(
+        ews_alerts.append(
             "Shared device anomaly"
         )
 
     if merchant_network_risk:
-        alerts.append(
-            "Merchant network linkage"
+        ews_alerts.append(
+            "Merchant network risk"
+        )
+
+    if amount_spike_risk:
+        ews_alerts.append(
+            "Sudden amount spike"
         )
 
     if mule_account_risk:
-        alerts.append(
-            "Potential mule account pattern"
+        ews_alerts.append(
+            "Potential mule activity"
+        )
+
+    if account_takeover_risk:
+        ews_alerts.append(
+            "Potential account takeover"
         )
 
     if structuring_risk:
-        alerts.append(
+        ews_alerts.append(
             "Structuring / smurfing risk"
         )
 
-    if len(alerts) > 0:
+    if abnormal_behavior_risk:
+        ews_alerts.append(
+            "Abnormal customer behavior"
+        )
 
-        for a in alerts:
+    if len(ews_alerts) > 0:
 
-            st.warning(a)
+        for alert in ews_alerts:
+
+            st.warning(alert)
 
     else:
 
@@ -531,23 +602,23 @@ CASE ID: {case_id}
 
     })
 
+    shap_df = shap_df.sort_values(
+        by="Impact",
+        ascending=False
+    )
+
     st.dataframe(
-        shap_df.sort_values(
-            by="Impact",
-            ascending=False
-        ),
+        shap_df,
         width='stretch'
     )
 
     # =====================================================
-    # FRAUD GAUGE
+    # FRAUD RISK GAUGE
     # =====================================================
 
-    st.subheader(
-        "🎯 Fraud Risk Gauge"
-    )
+    st.subheader("🎯 Fraud Risk Gauge")
 
-    gauge = go.Figure(go.Indicator(
+    fig = go.Figure(go.Indicator(
 
         mode="gauge+number",
 
@@ -565,19 +636,17 @@ CASE ID: {case_id}
     ))
 
     st.plotly_chart(
-        gauge,
+        fig,
         width='stretch'
     )
 
     # =====================================================
-    # FRAUD DISTRIBUTION
+    # FRAUD PIE CHART
     # =====================================================
 
-    st.subheader(
-        "📊 Fraud Distribution"
-    )
+    st.subheader("📊 Fraud Distribution")
 
-    fraud_df = pd.DataFrame({
+    fraud_dist = pd.DataFrame({
 
         "Category":[
             "Fraud",
@@ -590,19 +659,15 @@ CASE ID: {case_id}
         ]
     })
 
-    pie = px.pie(
-
-        fraud_df,
-
+    pie_fig = px.pie(
+        fraud_dist,
         names="Category",
-
         values="Value",
-
         hole=0.4
     )
 
     st.plotly_chart(
-        pie,
+        pie_fig,
         width='stretch'
     )
 
@@ -610,23 +675,17 @@ CASE ID: {case_id}
     # FRAUD TREND
     # =====================================================
 
-    st.subheader(
-        "📈 Hourly Fraud Trend"
-    )
+    st.subheader("⏰ Hourly Fraud Trend")
 
     trend_df = pd.DataFrame({
 
         "Hour":list(range(24)),
 
         "Fraud_Risk":
-        np.abs(
-            np.sin(
-                np.linspace(
-                    0,
-                    3*np.pi,
-                    24
-                )
-            )
+        np.random.uniform(
+            0.01,
+            0.8,
+            24
         )
     })
 
@@ -647,14 +706,12 @@ CASE ID: {case_id}
     )
 
     # =====================================================
-    # LIVE FRAUD MONITOR
+    # LIVE MONITOR
     # =====================================================
 
-    st.subheader(
-        "🛰️ Live Fraud Monitor"
-    )
+    st.subheader("🛰️ Live Fraud Monitor")
 
-    live_df = pd.DataFrame({
+    live_alerts = pd.DataFrame({
 
         "Time":[
 
@@ -665,36 +722,30 @@ CASE ID: {case_id}
             datetime.now().strftime("%H:%M:%S")
         ],
 
-        "Transaction_ID":[
+        "Case_ID":[
 
-            f"TXN{random.randint(10000,99999)}",
+            f"CASE-{random.randint(1000,9999)}",
 
-            f"TXN{random.randint(10000,99999)}",
+            f"CASE-{random.randint(1000,9999)}",
 
-            f"TXN{random.randint(10000,99999)}"
+            f"CASE-{random.randint(1000,9999)}"
         ],
 
         "Risk_Level":[
-
             "HIGH",
-
             "MEDIUM",
-
             "LOW"
         ],
 
         "Alert":[
-
             "Rapid Movement",
-
             "Shared Device",
-
             "Legitimate"
         ]
     })
 
     st.dataframe(
-        live_df,
+        live_alerts,
         width='stretch'
     )
 
@@ -702,40 +753,30 @@ CASE ID: {case_id}
     # CASE MANAGEMENT
     # =====================================================
 
-    st.subheader(
-        "🗂️ Enterprise Case Management"
-    )
+    st.subheader("🗂️ Case Management")
 
-    case_df = pd.DataFrame({
+    case_status = st.selectbox(
 
-        "Case_ID":[
-            case_id
-        ],
+        "Case Status",
 
-        "Risk_Level":[
-            risk_level
-        ],
-
-        "Status":[
-            "OPEN"
+        [
+            "OPEN",
+            "UNDER INVESTIGATION",
+            "ESCALATED",
+            "CLOSED"
         ]
-    })
-
-    st.dataframe(
-        case_df,
-        width='stretch'
     )
 
-    notes = st.text_area(
-        "Investigation Notes"
+    investigator_notes = st.text_area(
+        "Investigator Notes"
     )
 
     if st.button(
-        "💾 Save Investigation"
+        "Save Investigation"
     ):
 
         st.success(
-            "Investigation Updated"
+            "Investigation Saved Successfully"
         )
 
 # =========================================================
