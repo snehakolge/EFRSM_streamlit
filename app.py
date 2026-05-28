@@ -6,6 +6,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import shap
 import random
+import time
 from datetime import datetime
 
 # =========================================================
@@ -18,7 +19,7 @@ st.set_page_config(
 )
 
 # =========================================================
-# LOAD FILES
+# LOAD MODELS
 # =========================================================
 
 model = joblib.load(
@@ -188,18 +189,20 @@ analyse = st.sidebar.button(
 )
 
 # =========================================================
-# RUN ANALYSIS
+# MAIN ANALYSIS
 # =========================================================
 
 if analyse:
 
     # =====================================================
-    # CASE ID
+    # CASE IDS
     # =====================================================
 
     case_id = f"CASE-{random.randint(100000,999999)}"
 
     transaction_id = f"TXN-{random.randint(100000,999999)}"
+
+    customer_id = f"CUST-{random.randint(1000,9999)}"
 
     # =====================================================
     # RBI EWS ENGINE
@@ -412,7 +415,7 @@ if analyse:
     }])
 
     # =====================================================
-    # MATCH TRAINING FEATURES
+    # FEATURE ALIGNMENT
     # =====================================================
 
     input_data = input_data.reindex(
@@ -433,14 +436,18 @@ if analyse:
     )[0]
 
     # =====================================================
-    # RISK LEVEL
+    # PRIORITY ENGINE
     # =====================================================
 
-    if fraud_probability > 0.90:
+    if fraud_probability > 0.95:
+
+        risk_level = "SEV1"
+
+    elif fraud_probability > 0.85:
 
         risk_level = "CRITICAL"
 
-    elif fraud_probability > 0.75:
+    elif fraud_probability > 0.70:
 
         risk_level = "HIGH"
 
@@ -460,26 +467,31 @@ if analyse:
         "📊 Executive Dashboard"
     )
 
-    col1,col2,col3,col4 = st.columns(4)
+    c1,c2,c3,c4,c5 = st.columns(5)
 
-    col1.metric(
+    c1.metric(
         "Fraud Probability",
         f"{fraud_probability:.2%}"
     )
 
-    col2.metric(
+    c2.metric(
         "Risk Level",
         risk_level
     )
 
-    col3.metric(
+    c3.metric(
         "EWS Score",
         ews_score
     )
 
-    col4.metric(
+    c4.metric(
         "Case ID",
         case_id
+    )
+
+    c5.metric(
+        "Anomaly Score",
+        round(anomaly_score,4)
     )
 
     # =====================================================
@@ -513,7 +525,43 @@ CASE ID: {case_id}
         )
 
     # =====================================================
-    # RBI EWS SIGNALS
+    # CUSTOMER 360
+    # =====================================================
+
+    st.subheader(
+        "👤 Customer 360 Profile"
+    )
+
+    customer_df = pd.DataFrame({
+
+        "Attribute":[
+
+            "Customer ID",
+            "Account Age",
+            "KYC Risk",
+            "Country",
+            "Previous Alerts",
+            "Shared Device Count"
+        ],
+
+        "Value":[
+
+            customer_id,
+            "5 Years",
+            "HIGH",
+            "India",
+            random.randint(0,5),
+            shared_device_count
+        ]
+    })
+
+    st.dataframe(
+        customer_df,
+        use_container_width=True
+    )
+
+    # =====================================================
+    # RBI EWS ALERTS
     # =====================================================
 
     st.subheader(
@@ -614,8 +662,8 @@ CASE ID: {case_id}
     )
 
     st.dataframe(
-        shap_df,
-        width='stretch'
+        shap_df.head(10),
+        use_container_width=True
     )
 
     # =====================================================
@@ -626,7 +674,7 @@ CASE ID: {case_id}
         "🎯 Fraud Risk Gauge"
     )
 
-    fig = go.Figure(go.Indicator(
+    gauge = go.Figure(go.Indicator(
 
         mode="gauge+number",
 
@@ -637,6 +685,7 @@ CASE ID: {case_id}
         },
 
         gauge={
+
             'axis':{
                 'range':[0,100]
             }
@@ -644,8 +693,8 @@ CASE ID: {case_id}
     ))
 
     st.plotly_chart(
-        fig,
-        width='stretch'
+        gauge,
+        use_container_width=True
     )
 
     # =====================================================
@@ -682,7 +731,7 @@ CASE ID: {case_id}
 
     st.plotly_chart(
         pie_fig,
-        width='stretch'
+        use_container_width=True
     )
 
     # =====================================================
@@ -722,11 +771,11 @@ CASE ID: {case_id}
 
     st.plotly_chart(
         trend_fig,
-        width='stretch'
+        use_container_width=True
     )
 
     # =====================================================
-    # LIVE FRAUD ALERT MONITOR
+    # LIVE MONITOR
     # =====================================================
 
     st.subheader(
@@ -744,16 +793,16 @@ CASE ID: {case_id}
             datetime.now().strftime("%H:%M:%S")
         ],
 
-        "Case_ID":[
+        "Transaction_ID":[
 
-            case_id,
+            transaction_id,
 
-            f"CASE-{random.randint(1000,9999)}",
+            f"TXN-{random.randint(1000,9999)}",
 
-            f"CASE-{random.randint(1000,9999)}"
+            f"TXN-{random.randint(1000,9999)}"
         ],
 
-        "Risk_Level":[
+        "Risk":[
 
             risk_level,
 
@@ -769,21 +818,12 @@ CASE ID: {case_id}
             "Shared Device",
 
             "Legitimate"
-        ],
-
-        "Status":[
-
-            "OPEN",
-
-            "UNDER REVIEW",
-
-            "MONITORING"
         ]
     })
 
     st.dataframe(
         live_alerts,
-        width='stretch'
+        use_container_width=True
     )
 
     # =====================================================
@@ -824,20 +864,40 @@ CASE ID: {case_id}
         ]
     })
 
-    st.dataframe(
-        case_queue,
-        width='stretch'
-    )
+    edited_df = st.data_editor(
 
-    # =====================================================
-    # CASE SELECTION
-    # =====================================================
+        case_queue,
+
+        use_container_width=True,
+
+        hide_index=True
+    )
 
     selected_case = st.selectbox(
 
-        "Select Case For Investigation",
+        "Open Investigation Case",
 
-        case_queue["Case_ID"]
+        edited_df["Case_ID"]
+    )
+
+    # =====================================================
+    # ANALYST ASSIGNMENT
+    # =====================================================
+
+    investigator = st.selectbox(
+
+        "Assign Investigator",
+
+        [
+
+            "Fraud Analyst 1",
+
+            "Fraud Analyst 2",
+
+            "AML Team",
+
+            "Risk Team"
+        ]
     )
 
     # =====================================================
@@ -850,6 +910,10 @@ CASE ID: {case_id}
 
     st.write(
         f"Currently Investigating: {selected_case}"
+    )
+
+    st.write(
+        f"Assigned To: {investigator}"
     )
 
     # =====================================================
@@ -898,12 +962,8 @@ CASE ID: {case_id}
 
     st.dataframe(
         comments_df,
-        width='stretch'
+        use_container_width=True
     )
-
-    # =====================================================
-    # ADD NEW COMMENT
-    # =====================================================
 
     analyst_comment = st.text_area(
         "Add Investigation Comment"
@@ -925,9 +985,9 @@ CASE ID: {case_id}
         "⚙️ Analyst Actions"
     )
 
-    c1,c2,c3,c4 = st.columns(4)
+    a1,a2,a3,a4 = st.columns(4)
 
-    if c1.button(
+    if a1.button(
         "🚨 Escalate"
     ):
 
@@ -935,28 +995,50 @@ CASE ID: {case_id}
             f"{selected_case} escalated"
         )
 
-    if c2.button(
+    if a2.button(
         "🔒 Freeze Account"
     ):
 
         st.error(
-            f"Freeze initiated for {selected_case}"
+            "Account freeze initiated"
         )
 
-    if c3.button(
-        "📤 Generate SAR"
+    if a3.button(
+        "📤 Generate STR"
     ):
 
         st.info(
-            f"SAR workflow started for {selected_case}"
+            "STR generation initiated"
         )
 
-    if c4.button(
+    if a4.button(
         "✅ Close Case"
     ):
 
         st.success(
-            f"{selected_case} closed successfully"
+            f"{selected_case} closed"
+        )
+
+    # =====================================================
+    # ADDITIONAL ACTIONS
+    # =====================================================
+
+    b1,b2 = st.columns(2)
+
+    if b1.button(
+        "📵 Block Channel"
+    ):
+
+        st.warning(
+            "Net banking channel blocked"
+        )
+
+    if b2.button(
+        "📞 Contact Customer"
+    ):
+
+        st.info(
+            "Customer notification initiated"
         )
 
     # =====================================================
@@ -994,7 +1076,7 @@ CASE ID: {case_id}
 
     st.dataframe(
         timeline_df,
-        width='stretch'
+        use_container_width=True
     )
 
 # =========================================================
